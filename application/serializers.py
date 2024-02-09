@@ -34,6 +34,11 @@ class PatientSerializer(serializers.ModelSerializer):
         model = Patient
         fields = ['profile', 'id', 'birth_date', 'gender', 'validated', 'doctor']
 
+class PatientInformationsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Patient
+        fields = [ 'id', 'birth_date', 'gender', 'validated']
+
 class PatientValidationSerializer(serializers.ModelSerializer):
     class Meta:
         model = Patient
@@ -90,10 +95,18 @@ class PrestationSerializer(serializers.ModelSerializer):
         model = Prestation
         fields = '__all__'
 
+class ReportSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Report
+        fields = '__all__'
+
 class ServiceSerializer(serializers.ModelSerializer):
+    prestation = PrestationSerializer()
+    patient = PatientSerializer()
+    report = ReportSerializer()
     class Meta:
         model = Service
-        fields = '__all__'
+        fields = ['prestation', 'patient', 'date', 'report']
 
 class MessageSerializer(serializers.ModelSerializer):
     class Meta:

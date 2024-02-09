@@ -56,22 +56,22 @@ class PatientViewSet(ModelViewSet):
 
     queryset = Patient.objects.all()
     serializer_class = PatientSerializer
-    permission_classes = [IsAdmin]
+    permission_classes = [IsAuthenticated]
 
     
-    @action(detail=False, methods=['get'])
+    @action(detail=False, methods=['get'], permission_classes = [IsAdmin])
     def non_validated_patients(self, request):
         non_validated_patients = Patient.objects.filter(validated=False)
         return Response(PatientSerializer(non_validated_patients, many=True).data)
     
 
-    @action(detail=False, methods=['get'])
+    @action(detail=False, methods=['get'], permission_classes = [IsAdmin])
     def validated_patients(self, request):
         validated_patients = Patient.objects.filter(validated=True)
         return Response(PatientSerializer(validated_patients, many=True).data)
 
 
-    @action(detail=True, methods=['put'])
+    @action(detail=True, methods=['put'], permission_classes = [IsAdmin])
     def validation(self, request, pk):
         try:
             patient = Patient.objects.get(id=pk)
@@ -85,7 +85,7 @@ class PatientViewSet(ModelViewSet):
         
         return Response(PatientSerializer(patient).data)
     
-    @action(detail=True, methods=['put'])
+    @action(detail=True, methods=['put'], permission_classes = [IsAdmin])
     def doctor_attribution(self, request, pk):
         patient = self.get_object()
         doctor_id = request.query_params['doctor_id']
@@ -109,6 +109,39 @@ class PatientViewSet(ModelViewSet):
             return Response(PatientSerializer(patient).data)
         except Patient.DoesNotExist:
             return None
+        
+    @action(detail=True, methods=['put'], serializer_class=PatientSerializer, permission_classes = [IsAdmin])
+    def update_patient_informations(self, request, pk):
+        patient = self.get_object()
+        profile = patient.profile
+
+        profile_data = request.data.pop('profile')
+        profile_serializer = ProfileSerializer(profile, data=profile_data)
+        if(profile_serializer.is_valid()):
+            profile_serializer.save()
+        else:
+            raise ValidationError(profile_serializer.errors)
+
+        
+        if('doctor' in request.data):
+            doctor_data = request.data.pop('doctor')
+            new_patient_doctor = Doctor.objects.get(pk=doctor_data['id'])
+            patient.doctor = new_patient_doctor
+            
+
+        patient_serializer = PatientInformationsSerializer(patient, request.data)
+        if(patient_serializer.is_valid()):
+            patient_serializer.save()
+        else:
+            raise ValidationError(patient_serializer.errors)
+        return Response(PatientSerializer(patient).data)
+
+    @action(detail=True, methods=['get'], serializer_class=PatientSerializer, permission_classes = [IsAdmin])
+    def get_patient_services(self, request, pk):
+        patient = self.get_object()
+        services = Service.objects.filter(patient = patient)
+        return Response(ServiceSerializer(services, many=True).data)
+
 
 
 
@@ -132,13 +165,19 @@ class DoctorViewSet(ModelViewSet):
 
     @action(detail=True, methods=['put'])
     def validation(self, request, pk):
-        doctor = self.get_object()
-        doctor_serializer = DoctorValidationSerializer(doctor)
         try:
-            doctor_serializer.update(doctor)
+            doctor = Doctor.objects.get(id=pk)
         except:
-            return Response("numero de telephone deja utilise")
+            return Response(status=status.HTTP_404_NOT_FOUND)
+
+        if(doctor.validated):
+            return Response(status=status.HTTP_208_ALREADY_REPORTED)
+        
+        doctor = validate_doctor(doctor)
+        
         return Response(DoctorSerializer(doctor).data)
+
+
     
     @action(detail=True, methods=['put'])
     def patient_attribution(self, request, pk):
@@ -159,35 +198,29 @@ class ProfileViewSet(ModelViewSet):
 
     queryset = Profile.objects.all()
     serializer_class = ProfileSerializer
-    permission_classes = []
+    permission_classes = [IsAdmin]
 
 
 class UserViewSet(ModelViewSet):
 
     queryset = User.objects.all()
     serializer_class = UserSerializer
-    permission_classes = []
+    permission_classes = [IsAdmin]
 
-
-class PrestationViewSet(ModelViewSet):
-
-    queryset = Prestation.objects.all()
-    serializer_class = PrestationSerializer
-    permission_classes = []
 
 
 class PrestationViewSet(ModelViewSet):
-
+    
     queryset = Prestation.objects.all()
     serializer_class = PrestationSerializer
-    permission_classes = []
+    permission_classes = [IsAuthenticated]
 
 
 class ServiceViewSet(ModelViewSet):
 
     queryset = Service.objects.all()
     serializer_class = ServiceSerializer
-    permission_classes = []
+    permission_classes = [IsAdmin]
 
 class AppointmentViewSet(ModelViewSet):
 
@@ -241,7 +274,7 @@ def validate_patient(patient):
     )
     
     user.groups.add(Group.objects.get(name='patient'))
-    user.user_permissions.add(Permission.objects.get(codename='patient_permission'))
+    #user.user_permissions.add(Permission.objects.get(codename='patient_permission'))
 
     profile=patient.profile
     profile.user = user
@@ -255,3 +288,23 @@ def validate_patient(patient):
     patient.validated = True
     patient.save()
     return patient
+
+
+def validate_doctor(doctor):
+    
+    user = User.objects.create(
+        username = str(doctor.profile.phone_number),
+        password = make_password(str(doctor.profile.phone_number))
+    )
+    
+    user.groups.add(Group.objects.get(name='doctor'))
+
+    profile=doctor.profile
+    profile.user = user
+    profile.save()
+    print(f" doctor of profile:{profile} validated successfully")
+
+
+    doctor.validated = True
+    doctor.save()
+    return doctor

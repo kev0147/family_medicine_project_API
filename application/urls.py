@@ -14,6 +14,8 @@ router.register(r'users', views.UserViewSet, basename='user')
 router.register(r'services', views.ServiceViewSet, basename='service')
 router.register(r'prestations', views.PrestationViewSet, basename='prestation')
 router.register(r'messages', views.MessageViewSet, basename='message')
+router.register(r'appointments', views.AppointmentViewSet, basename='appointment')
+
 
 # The API URLs are now determined automatically by the router.
 urlpatterns = router.urls
