@@ -1,0 +1,96 @@
+
+#to do before going production
+###############################################################################################
+
+
+from django.contrib.auth.models import Group, Permission
+from django.contrib.contenttypes.models import ContentType
+doctor_group = Group.objects.create(name='doctor')
+patient_group = Group.objects.create(name='patient')
+admin_group = Group.objects.create(name='admin')
+
+content_type = ContentType.objects.get_for_model(Permission)
+
+
+permission = Permission.objects.create(
+     codename='can_see_patient_infos',
+     name='can_see_patient_infos',
+     content_type=content_type,
+ )
+doctor_group.permissions.add(permission)
+doctor_group.save()
+
+permission = Permission.objects.create(
+     codename='can_validate_patient',
+     name='can_validate_patient',
+     content_type=content_type,
+ )
+doctor_group.permissions.add(permission)
+doctor_group.save()
+admin_group.permissions.add(permission)
+admin_group.save()
+
+permission = Permission.objects.create(
+     codename='can_validate_doctor',
+     name='can_validate_doctor',
+     content_type=content_type,
+ )
+admin_group.permissions.add(permission)
+admin_group.save()
+
+permission = Permission.objects.create(
+     codename='can_crud_patient',
+     name='can_crud_patient',
+     content_type=content_type,
+ )
+admin_group.permissions.add(permission)
+admin_group.save()
+
+permission = Permission.objects.create(
+     codename='can_crud_doctor',
+     name='can_crud_doctor',
+     content_type=content_type,
+ )
+admin_group.permissions.add(permission)
+admin_group.save()
+
+
+permission = Permission.objects.create(
+     codename='can_ask_services',
+     name='can_ask_services',
+     content_type=content_type,
+ )
+patient_group.permissions.add(permission)
+patient_group.save()
+
+
+
+from application.models import Prestation
+prestation_data = {
+    "prestation": "inscription",
+    "price": 7000
+}
+prestation_instance = Prestation.objects.create(**prestation_data)
+prestation_instance.save()
+
+
+
+#######################################################################
+from django.contrib.auth.models import User, Group
+
+# Create superuser
+User.objects.create_superuser('superadmin', 'admin@example.com', 'password')
+
+# Create admin group if it doesn't exist
+admin_group, created = Group.objects.get_or_create(name='admin')
+
+# Create admin user
+admin_user = User.objects.create_user('admin', 'admin@example.com', 'password')
+admin_user.groups.add(admin_group)
+admin_user.is_staff = True
+admin_user.save()
+
+
+
+
+#################################################################################################
